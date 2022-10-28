@@ -20,12 +20,13 @@
 #include "lwip/netdb.h"
 #include "driver/uart.h"
 
-#define RS 11
-#define E 7
-#define D4 9
-#define D5 10
-#define D6 8
-#define D7 6
+#define RS 13
+#define E 12
+#define D4 14
+#define D5 16
+#define D6 4
+#define D7 5
+#define LED 2
 
 #define DEFAULT_SCAN_LIST_SIZE 20
 #define EXAMPLE_ESP_MAXIMUM_RETRY 5
@@ -405,11 +406,26 @@ static void tcp_client_task(void *pvParameters)
 static void _us_delay(uint32_t time_us)
 {
     //ets_delay_us(time_us);
-        os_delay_us(time_us);
+    //    os_delay_us(time_us);
+	vTaskDelay(time_us / portTICK_RATE_MS);
 }
 
 static void lcd_init()
 {
+	gpio_set_direction(RS, GPIO_MODE_OUTPUT);
+	gpio_set_direction(E, GPIO_MODE_OUTPUT);
+	gpio_set_direction(D4, GPIO_MODE_OUTPUT);
+	gpio_set_direction(D5, GPIO_MODE_OUTPUT);
+	gpio_set_direction(D6, GPIO_MODE_OUTPUT);
+	gpio_set_direction(D7, GPIO_MODE_OUTPUT);
+
+/*	gpio_pad_select_gpio(RS);
+	gpio_pad_select_gpio(E);
+	gpio_pad_select_gpio(D4);
+	gpio_pad_select_gpio(D5);
+	gpio_pad_select_gpio(D6);
+	gpio_pad_select_gpio(D7);*/
+
 //	gpio_set_level(VDD, 0);
 	gpio_set_level(RS, 0);
 	gpio_set_level(E, 0);
@@ -419,26 +435,26 @@ static void lcd_init()
 	gpio_set_level(D7, 0);
 
 	//gpio_set_level(VDD, 1);
-	_us_delay(20000);
+	_us_delay(20);
 	gpio_set_level(E, 1);
-	_us_delay(50);
+	_us_delay(1);
 	gpio_set_level(D4, 1);
 	gpio_set_level(D5, 1);
 	gpio_set_level(E, 0);
-	_us_delay(4200);
+	_us_delay(4);
 	gpio_set_level(E, 1);
-	_us_delay(50);
+	_us_delay(1);
 	gpio_set_level(E, 0);
-	_us_delay(150);
+	_us_delay(1);
 	gpio_set_level(E, 1);
-	_us_delay(50);
+	_us_delay(1);
 	gpio_set_level(E, 0);
-	_us_delay(1000);
+	_us_delay(1);
 	gpio_set_level(E, 1);
-	_us_delay(50);
+	_us_delay(5);
 	gpio_set_level(D4, 0);
 	gpio_set_level(E, 0);
-	_us_delay(1000);
+	_us_delay(1);
 }
 
 static void command (unsigned char data)
@@ -457,9 +473,9 @@ static void command (unsigned char data)
 	gpio_set_level(D4, (data&(1<<4))>>4);
 
 	gpio_set_level(E, 0);
-	_us_delay(150);
+	_us_delay(1);
 	gpio_set_level(E, 1);
-	_us_delay(150);
+	_us_delay(1);
 	gpio_set_level(D4, 0);
 	gpio_set_level(D5, 0);
 	gpio_set_level(D6, 0);
@@ -470,14 +486,14 @@ static void command (unsigned char data)
 	gpio_set_level(D5, (data&(1<<1))>>1);
 	gpio_set_level(D4, data&1);
 	gpio_set_level(E, 0);
-	_us_delay(2000);
+	_us_delay(2);
 }
 
 static void lcd_send (unsigned char data)
 {
 	gpio_set_level(RS, 1);
 	gpio_set_level(E, 1);
-	_us_delay(50);
+	_us_delay(1);
 	gpio_set_level(D4, 0);
 	gpio_set_level(D5, 0);
 	gpio_set_level(D6, 0);
@@ -489,9 +505,9 @@ static void lcd_send (unsigned char data)
 	gpio_set_level(D4, (data&(1<<4))>>4);
 
 	gpio_set_level(E, 0);
-	_us_delay(50);
+	_us_delay(1);
 	gpio_set_level(E, 1);
-	_us_delay(50);
+	_us_delay(1);
 	gpio_set_level(D4, 0);
 	gpio_set_level(D5, 0);
 	gpio_set_level(D6, 0);
@@ -502,7 +518,7 @@ static void lcd_send (unsigned char data)
 	gpio_set_level(D5, (data&(1<<1))>>1);
 	gpio_set_level(D4, data&1);
 	gpio_set_level(E, 0);
-	_us_delay(1000);
+	_us_delay(1);
 }
 
 static void set_position (unsigned char stroka, unsigned char symb)
@@ -521,15 +537,25 @@ static void lcd_intro()
 	gpio_pad_select_gpio(33);
 	gpio_pad_select_gpio(32);*/
 	//gpio_set_direction(LED, GPIO_MODE_OUTPUT);
-	gpio_set_direction(RS, GPIO_MODE_OUTPUT);
-	gpio_set_direction(E, GPIO_MODE_OUTPUT);
-	gpio_set_direction(D4, GPIO_MODE_OUTPUT);
-	gpio_set_direction(D5, GPIO_MODE_OUTPUT);
-	gpio_set_direction(D6, GPIO_MODE_OUTPUT);
-	gpio_set_direction(D7, GPIO_MODE_OUTPUT);
-	//gpio_set_direction(32, GPIO_MODE_OUTPUT);
 
-	//gpio_set_level(LED, 0);
+	gpio_set_direction(LED, GPIO_MODE_OUTPUT);
+	gpio_set_level(LED, 0);
+        ESP_LOGI(TAG, "Off-1000");
+	_us_delay(1000);
+	gpio_set_level(LED, 1);
+        ESP_LOGI(TAG, "ON-500");
+	_us_delay(500);
+	gpio_set_level(LED, 0);
+        ESP_LOGI(TAG, "OFF-100");
+	_us_delay(100);
+	gpio_set_level(LED, 1);
+        ESP_LOGI(TAG, "ON-500");
+	_us_delay(500);
+	gpio_set_level(LED, 0);
+	_us_delay(500);
+	gpio_set_level(LED, 1);
+	_us_delay(500);
+	gpio_set_level(LED, 0);
 
 	lcd_init();
 	//ESP_LOGI(TAG, "init");
@@ -540,7 +566,7 @@ static void lcd_intro()
 	//ESP_LOGI(TAG, "init2");
 	command(0b00000110); //cursor_right, no_display_shift
 	command(0b00000001);
-	_us_delay(200);
+	_us_delay(2);
 	//ESP_LOGI(TAG, "init3");
 	command(0b01000000);
 	//ESP_LOGI(TAG, "init4");
@@ -590,39 +616,41 @@ static void lcd_intro()
 	lcd_send(0b00011011);
 
 	set_position(0,0);
-	lcd_send('W');_us_delay(50000);
-	lcd_send('a');_us_delay(50000);
-	lcd_send('k');_us_delay(50000);
-	lcd_send('e');_us_delay(50000);
-	lcd_send(' ');_us_delay(50000);
-	lcd_send('u');_us_delay(50000);
-	lcd_send('p');_us_delay(50000);
-	lcd_send(',');_us_delay(50000);
-	lcd_send(' ');_us_delay(50000);
-	lcd_send('N');_us_delay(50000);
-	lcd_send('e');_us_delay(50000);
-	lcd_send('o');_us_delay(50000);
-	lcd_send('!');_us_delay(50000);
-	lcd_send(' ');_us_delay(50000);
-	lcd_send(4);_us_delay(50000);
+	lcd_send('W');_us_delay(50);
+	lcd_send('a');_us_delay(50);
+	lcd_send('k');_us_delay(50);
+	lcd_send('e');_us_delay(50);
+	lcd_send(' ');_us_delay(50);
+	lcd_send('u');_us_delay(50);
+	lcd_send('p');_us_delay(50);
+	lcd_send(',');_us_delay(50);
+	lcd_send(' ');_us_delay(50);
+	lcd_send('N');_us_delay(50);
+	lcd_send('e');_us_delay(50);
+	lcd_send('o');_us_delay(50);
+	lcd_send('!');_us_delay(50);
+	lcd_send(' ');_us_delay(50);
+	lcd_send(4);_us_delay(50);
 
 	set_position(1,0);
-	lcd_send('Y');_us_delay(50000);
-	lcd_send('o');_us_delay(50000);
-	lcd_send('u');_us_delay(50000);
-	lcd_send(' ');_us_delay(50000);
-	lcd_send('o');_us_delay(50000);
-	lcd_send('b');_us_delay(50000);
-	lcd_send('o');_us_delay(50000);
-	lcd_send('s');_us_delay(50000);
-	lcd_send('r');_us_delay(50000);
-	lcd_send('a');_us_delay(50000);
-	lcd_send('l');_us_delay(50000);
-	lcd_send('s');_us_delay(50000);
-	lcd_send('y');_us_delay(50000);
-	lcd_send('a');_us_delay(50000);
-	lcd_send('!');_us_delay(50000);
-	_us_delay(500000);
+	lcd_send('Y');_us_delay(50);
+	lcd_send('o');_us_delay(50);
+	lcd_send('u');_us_delay(50);
+	lcd_send(' ');_us_delay(50);
+	lcd_send('o');_us_delay(50);
+	lcd_send('b');_us_delay(50);
+	lcd_send('o');_us_delay(50);
+	lcd_send('s');_us_delay(50);
+	lcd_send('r');_us_delay(50);
+	lcd_send('a');_us_delay(50);
+	lcd_send('l');_us_delay(50);
+	lcd_send('s');_us_delay(50);
+	lcd_send('y');_us_delay(50);
+	lcd_send('a');_us_delay(50);
+	lcd_send('!');_us_delay(50);
+	_us_delay(500);
+
+	gpio_set_level(LED, 1);
 }
 
 uint8_t sign = 1;
@@ -669,22 +697,22 @@ static void lcd_show()
 
 void app_main(void)
 {
-    ESP_ERROR_CHECK(nvs_flash_init());
-    ESP_ERROR_CHECK(esp_netif_init());
-    ESP_ERROR_CHECK(esp_event_loop_create_default());
+//    ESP_ERROR_CHECK(nvs_flash_init());
+//    ESP_ERROR_CHECK(esp_netif_init());
+//    ESP_ERROR_CHECK(esp_event_loop_create_default());
 
    // ESP_ERROR_CHECK(example_connect());
 	lcd_intro();
 	lcd_show();
-	wifi_scan();
-	sntp_example_task();
+//	wifi_scan();
+//	sntp_example_task();
 	adc_config_t adc_config;
 	adc_config.mode = ADC_READ_TOUT_MODE;
 	adc_config.clk_div = 8;
 	ESP_ERROR_CHECK(adc_init(&adc_config));
-	xSemaphore = xSemaphoreCreateBinary();
-	if( xSemaphore == NULL ) ESP_LOGI(TAG, "Cannot create semaphore"); else ESP_LOGI(TAG, "Semaphore created"); 
-	xTaskCreate(tcp_client_task, "tcp_client", 4096, NULL, 5, NULL);
+//	xSemaphore = xSemaphoreCreateBinary();
+//	if( xSemaphore == NULL ) ESP_LOGI(TAG, "Cannot create semaphore"); else ESP_LOGI(TAG, "Semaphore created"); 
+//	xTaskCreate(tcp_client_task, "tcp_client", 4096, NULL, 5, NULL);
 	//xTaskCreate(tcp_server_task, "tcp_server", 4096, (void*)AF_INET, 5, NULL);
 
 	while(1)
