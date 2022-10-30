@@ -1,24 +1,24 @@
 libsodium/src/libsodium/crypto_sign/ed25519/ref10/obsolete.o: \
- /home/user/esp/ESP8266_RTOS_SDK/components/libsodium/libsodium/src/libsodium/crypto_sign/ed25519/ref10/obsolete.c \
- /home/user/esp/ESP8266_RTOS_SDK/components/libsodium/libsodium/src/libsodium/include/sodium/crypto_hash_sha512.h \
- /home/user/esp/ESP8266_RTOS_SDK/components/libsodium/libsodium/src/libsodium/include/sodium/export.h \
- /home/user/esp/ESP8266_RTOS_SDK/components/libsodium/libsodium/src/libsodium/include/sodium/crypto_sign_edwards25519sha512batch.h \
- /home/user/esp/ESP8266_RTOS_SDK/components/libsodium/libsodium/src/libsodium/include/sodium/crypto_verify_32.h \
- /home/user/esp/ESP8266_RTOS_SDK/components/libsodium/libsodium/src/libsodium/include/sodium/private/curve25519_ref10.h \
- /home/user/esp/ESP8266_RTOS_SDK/components/libsodium/libsodium/src/libsodium/include/sodium/randombytes.h \
- /home/user/esp/ESP8266_RTOS_SDK/components/libsodium/libsodium/src/libsodium/include/sodium/utils.h
+ /home/alligator/esp/ESP8266_RTOS_SDK/components/libsodium/libsodium/src/libsodium/crypto_sign/ed25519/ref10/obsolete.c \
+ /home/alligator/esp/ESP8266_RTOS_SDK/components/libsodium/libsodium/src/libsodium/include/sodium/crypto_hash_sha512.h \
+ /home/alligator/esp/ESP8266_RTOS_SDK/components/libsodium/libsodium/src/libsodium/include/sodium/export.h \
+ /home/alligator/esp/ESP8266_RTOS_SDK/components/libsodium/libsodium/src/libsodium/include/sodium/crypto_sign_edwards25519sha512batch.h \
+ /home/alligator/esp/ESP8266_RTOS_SDK/components/libsodium/libsodium/src/libsodium/include/sodium/crypto_verify_32.h \
+ /home/alligator/esp/ESP8266_RTOS_SDK/components/libsodium/libsodium/src/libsodium/include/sodium/private/curve25519_ref10.h \
+ /home/alligator/esp/ESP8266_RTOS_SDK/components/libsodium/libsodium/src/libsodium/include/sodium/randombytes.h \
+ /home/alligator/esp/ESP8266_RTOS_SDK/components/libsodium/libsodium/src/libsodium/include/sodium/utils.h
 
-/home/user/esp/ESP8266_RTOS_SDK/components/libsodium/libsodium/src/libsodium/include/sodium/crypto_hash_sha512.h:
+/home/alligator/esp/ESP8266_RTOS_SDK/components/libsodium/libsodium/src/libsodium/include/sodium/crypto_hash_sha512.h:
 
-/home/user/esp/ESP8266_RTOS_SDK/components/libsodium/libsodium/src/libsodium/include/sodium/export.h:
+/home/alligator/esp/ESP8266_RTOS_SDK/components/libsodium/libsodium/src/libsodium/include/sodium/export.h:
 
-/home/user/esp/ESP8266_RTOS_SDK/components/libsodium/libsodium/src/libsodium/include/sodium/crypto_sign_edwards25519sha512batch.h:
+/home/alligator/esp/ESP8266_RTOS_SDK/components/libsodium/libsodium/src/libsodium/include/sodium/crypto_sign_edwards25519sha512batch.h:
 
-/home/user/esp/ESP8266_RTOS_SDK/components/libsodium/libsodium/src/libsodium/include/sodium/crypto_verify_32.h:
+/home/alligator/esp/ESP8266_RTOS_SDK/components/libsodium/libsodium/src/libsodium/include/sodium/crypto_verify_32.h:
 
-/home/user/esp/ESP8266_RTOS_SDK/components/libsodium/libsodium/src/libsodium/include/sodium/private/curve25519_ref10.h:
+/home/alligator/esp/ESP8266_RTOS_SDK/components/libsodium/libsodium/src/libsodium/include/sodium/private/curve25519_ref10.h:
 
-/home/user/esp/ESP8266_RTOS_SDK/components/libsodium/libsodium/src/libsodium/include/sodium/randombytes.h:
+/home/alligator/esp/ESP8266_RTOS_SDK/components/libsodium/libsodium/src/libsodium/include/sodium/randombytes.h:
 
-/home/user/esp/ESP8266_RTOS_SDK/components/libsodium/libsodium/src/libsodium/include/sodium/utils.h:
-/home/user/esp/ESP8266_RTOS_SDK/components/libsodium/libsodium/src/libsodium/crypto_sign/ed25519/ref10/obsolete.c:
+/home/alligator/esp/ESP8266_RTOS_SDK/components/libsodium/libsodium/src/libsodium/include/sodium/utils.h:
+/home/alligator/esp/ESP8266_RTOS_SDK/components/libsodium/libsodium/src/libsodium/crypto_sign/ed25519/ref10/obsolete.c:

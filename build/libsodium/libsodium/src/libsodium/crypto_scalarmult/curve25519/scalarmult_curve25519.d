@@ -1,21 +1,21 @@
 libsodium/src/libsodium/crypto_scalarmult/curve25519/scalarmult_curve25519.o: \
- /home/user/esp/ESP8266_RTOS_SDK/components/libsodium/libsodium/src/libsodium/crypto_scalarmult/curve25519/scalarmult_curve25519.c \
- /home/user/esp/ESP8266_RTOS_SDK/components/libsodium/libsodium/src/libsodium/include/sodium/crypto_scalarmult_curve25519.h \
- /home/user/esp/ESP8266_RTOS_SDK/components/libsodium/libsodium/src/libsodium/include/sodium/export.h \
- /home/user/esp/ESP8266_RTOS_SDK/components/libsodium/libsodium/src/libsodium/crypto_scalarmult/curve25519/scalarmult_curve25519.h \
- /home/user/esp/ESP8266_RTOS_SDK/components/libsodium/libsodium/src/libsodium/include/sodium/runtime.h \
- /home/user/esp/ESP8266_RTOS_SDK/components/libsodium/libsodium/src/libsodium/crypto_scalarmult/curve25519/ref10/x25519_ref10.h \
- /home/user/esp/ESP8266_RTOS_SDK/components/libsodium/libsodium/src/libsodium/crypto_scalarmult/curve25519/ref10/../scalarmult_curve25519.h
+ /home/alligator/esp/ESP8266_RTOS_SDK/components/libsodium/libsodium/src/libsodium/crypto_scalarmult/curve25519/scalarmult_curve25519.c \
+ /home/alligator/esp/ESP8266_RTOS_SDK/components/libsodium/libsodium/src/libsodium/include/sodium/crypto_scalarmult_curve25519.h \
+ /home/alligator/esp/ESP8266_RTOS_SDK/components/libsodium/libsodium/src/libsodium/include/sodium/export.h \
+ /home/alligator/esp/ESP8266_RTOS_SDK/components/libsodium/libsodium/src/libsodium/crypto_scalarmult/curve25519/scalarmult_curve25519.h \
+ /home/alligator/esp/ESP8266_RTOS_SDK/components/libsodium/libsodium/src/libsodium/include/sodium/runtime.h \
+ /home/alligator/esp/ESP8266_RTOS_SDK/components/libsodium/libsodium/src/libsodium/crypto_scalarmult/curve25519/ref10/x25519_ref10.h \
+ /home/alligator/esp/ESP8266_RTOS_SDK/components/libsodium/libsodium/src/libsodium/crypto_scalarmult/curve25519/ref10/../scalarmult_curve25519.h
 
-/home/user/esp/ESP8266_RTOS_SDK/components/libsodium/libsodium/src/libsodium/include/sodium/crypto_scalarmult_curve25519.h:
+/home/alligator/esp/ESP8266_RTOS_SDK/components/libsodium/libsodium/src/libsodium/include/sodium/crypto_scalarmult_curve25519.h:
 
-/home/user/esp/ESP8266_RTOS_SDK/components/libsodium/libsodium/src/libsodium/include/sodium/export.h:
+/home/alligator/esp/ESP8266_RTOS_SDK/components/libsodium/libsodium/src/libsodium/include/sodium/export.h:
 
-/home/user/esp/ESP8266_RTOS_SDK/components/libsodium/libsodium/src/libsodium/crypto_scalarmult/curve25519/scalarmult_curve25519.h:
+/home/alligator/esp/ESP8266_RTOS_SDK/components/libsodium/libsodium/src/libsodium/crypto_scalarmult/curve25519/scalarmult_curve25519.h:
 
-/home/user/esp/ESP8266_RTOS_SDK/components/libsodium/libsodium/src/libsodium/include/sodium/runtime.h:
+/home/alligator/esp/ESP8266_RTOS_SDK/components/libsodium/libsodium/src/libsodium/include/sodium/runtime.h:
 
-/home/user/esp/ESP8266_RTOS_SDK/components/libsodium/libsodium/src/libsodium/crypto_scalarmult/curve25519/ref10/x25519_ref10.h:
+/home/alligator/esp/ESP8266_RTOS_SDK/components/libsodium/libsodium/src/libsodium/crypto_scalarmult/curve25519/ref10/x25519_ref10.h:
 
-/home/user/esp/ESP8266_RTOS_SDK/components/libsodium/libsodium/src/libsodium/crypto_scalarmult/curve25519/ref10/../scalarmult_curve25519.h:
-/home/user/esp/ESP8266_RTOS_SDK/components/libsodium/libsodium/src/libsodium/crypto_scalarmult/curve25519/scalarmult_curve25519.c:
+/home/alligator/esp/ESP8266_RTOS_SDK/components/libsodium/libsodium/src/libsodium/crypto_scalarmult/curve25519/ref10/../scalarmult_curve25519.h:
+/home/alligator/esp/ESP8266_RTOS_SDK/components/libsodium/libsodium/src/libsodium/crypto_scalarmult/curve25519/scalarmult_curve25519.c:
