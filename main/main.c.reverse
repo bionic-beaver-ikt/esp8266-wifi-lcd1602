@@ -28,8 +28,12 @@
 #define D7 5
 #define LED 2
 
+//#define GPIO_OUTPUT_IO_0    15
+//#define GPIO_OUTPUT_IO_1    16
+//#define GPIO_OUTPUT_PIN_SEL  ((1ULL<<RS) | (1ULL<<E) | (1ULL<<D4) | (1ULL<<D5) | (1ULL<<D6) | (1ULL<<D7) | (1ULL<<LED))
 #define GPIO_OUTPUT_PIN_SEL  ((1ULL<<RS) | (1ULL<<E) | (1ULL<<LED))
 #define GPIO_OUTPUT_PIN_SEL2 ((1ULL<<D4) | (1ULL<<D5) | (1ULL<<D6) | (1ULL<<D7))
+//#define GPIO_OUTPUT_PIN_SEL3 (1ULL<<D4)
 
 #define DEFAULT_SCAN_LIST_SIZE 20
 #define EXAMPLE_ESP_MAXIMUM_RETRY 5
@@ -41,7 +45,7 @@
 #define HOST_IP_ADDR CONFIG_EXAMPLE_IPV4_ADDR
 #define PORT 3333
 
-//static const char *payload = "Message from ESP32 ";
+static const char *payload = "Message from ESP32 ";
 
 #define KEEPALIVE_IDLE 60
 #define KEEPALIVE_INTERVAL 10
@@ -99,7 +103,7 @@ static void initialize_sntp(void)
 {
     ESP_LOGI(TAG, "Initializing SNTP");
     sntp_setoperatingmode(SNTP_OPMODE_POLL);
-    sntp_setservername(0, "ntp2.niiftri.irkutsk.ru");
+    sntp_setservername(0, "pool.ntp.org");
     sntp_init();
 }
 
@@ -316,39 +320,111 @@ static void wifi_scan(void)
     } while (len > 0);
 }*/
 
+char rx_buffer[128];
+int len = 0;
+
+static void calculate_data()
+{
+	int part_num = 0;
+	int cut1 = 0;
+	int cut2 = 0;
+	for (int i = 0; i < len; i++)
+	{
+		if (rx_buffer[i] != ' ') cut2++;
+		else
+		{
+			char array[part_num][cut2-cut1+1];
+			for (int j = cut1; j<cut2; cut1++)
+			{
+				array[part_num][j] = rx_buffer[j];
+			}
+			array[part_num][cut2] = '\0';
+			cut2++;
+			cut1 = cut2;
+			ESP_LOGI (TAG, "%d: %s", i, array[part_num]);
+			part_num++;
+		}
+	}
+}
+
+static void tcp_client_task(void *pvParameters)
+{
+    char addr_str[128];
+    int addr_family;
+    int ip_protocol;
+
+	while(1)
+	{
+        struct sockaddr_in destAddr;
+        destAddr.sin_addr.s_addr = inet_addr(HOST_IP_ADDR);
+        destAddr.sin_family = AF_INET;
+        destAddr.sin_port = htons(PORT);
+        addr_family = AF_INET;
+        ip_protocol = IPPROTO_IP;
+        inet_ntoa_r(destAddr.sin_addr, addr_str, sizeof(addr_str) - 1);
+
+		int sock =  socket(addr_family, SOCK_STREAM, ip_protocol);
+        if (sock < 0) {
+            ESP_LOGE(TAG, "Unable to create socket: errno %d", errno);
+            break;
+        }
+        ESP_LOGI(TAG, "Socket created");
+
+        int err = connect(sock, (struct sockaddr *)&destAddr, sizeof(destAddr));
+        if (err != 0) {
+            ESP_LOGE(TAG, "Socket unable to connect: errno %d", errno);
+            close(sock);
+            continue;
+        }
+        ESP_LOGI(TAG, "Successfully connected");
+
+        while (1) {
+            int err = send(sock, payload, strlen(payload), 0);
+            if (err < 0) {
+                ESP_LOGE(TAG, "Error occured during sending: errno %d", errno);
+                break;
+            }
+
+            len = recv(sock, rx_buffer, sizeof(rx_buffer) - 1, 0);
+            // Error occured during receiving
+            if (len < 0) {
+                ESP_LOGE(TAG, "recv failed: errno %d", errno);
+                break;
+            }
+            // Data received
+            else {
+                rx_buffer[len] = 0; // Null-terminate whatever we received and treat like a string
+                ESP_LOGI(TAG, "Received %d bytes from %s:", len, addr_str);
+                ESP_LOGI(TAG, "%s", rx_buffer);
+		calculate_data();
+            }
+
+            vTaskDelay(2000 / portTICK_PERIOD_MS);
+        }
+
+        if (sock != -1) {
+            ESP_LOGE(TAG, "Shutting down socket and restarting...");
+            shutdown(sock, 0);
+            close(sock);
+	}
+    }
+}
+
 static void _us_delay(uint32_t time_us)
 {
-//    ets_delay_us(time_us*1000);
+    //ets_delay_us(time_us);
     //    os_delay_us(time_us);
 	vTaskDelay(time_us / portTICK_RATE_MS);
-//	vTaskDelay(time_us);
 }
 
 static void lcd_init()
 {
-    gpio_config_t io_conf;
-    io_conf.intr_type = GPIO_INTR_DISABLE;
-    io_conf.mode = GPIO_MODE_OUTPUT;
-    io_conf.pin_bit_mask = GPIO_OUTPUT_PIN_SEL;
-    io_conf.pull_down_en = 0;
-    io_conf.pull_up_en = 0;
-    gpio_config(&io_conf);
-
-    io_conf.intr_type = GPIO_INTR_DISABLE;
-    io_conf.mode = GPIO_MODE_OUTPUT;
-    io_conf.pin_bit_mask = GPIO_OUTPUT_PIN_SEL2;
-    io_conf.pull_down_en = 0;
-    io_conf.pull_up_en = 0;
-    gpio_config(&io_conf);
-
-	_us_delay(50);
-
-//	gpio_set_direction(RS, GPIO_MODE_OUTPUT);
-//	gpio_set_direction(E, GPIO_MODE_OUTPUT);
-//	gpio_set_direction(D4, GPIO_MODE_OUTPUT);
-//	gpio_set_direction(D5, GPIO_MODE_OUTPUT);
-//	gpio_set_direction(D6, GPIO_MODE_OUTPUT);
-//	gpio_set_direction(D7, GPIO_MODE_OUTPUT);
+	gpio_set_direction(RS, GPIO_MODE_OUTPUT);
+	gpio_set_direction(E, GPIO_MODE_OUTPUT);
+	gpio_set_direction(D4, GPIO_MODE_OUTPUT);
+	gpio_set_direction(D5, GPIO_MODE_OUTPUT);
+	gpio_set_direction(D6, GPIO_MODE_OUTPUT);
+	gpio_set_direction(D7, GPIO_MODE_OUTPUT);
 
 /*	gpio_pad_select_gpio(RS);
 	gpio_pad_select_gpio(E);
@@ -357,123 +433,112 @@ static void lcd_init()
 	gpio_pad_select_gpio(D6);
 	gpio_pad_select_gpio(D7);*/
 
-//	gpio_set_level(VDD, 0);
-	gpio_set_level(RS, 0);
-	gpio_set_level(E, 0);
+	gpio_set_level(RS, 1);
+	gpio_set_level(E, 1);
+	gpio_set_level(D4, 1);
+	gpio_set_level(D5, 1);
+	gpio_set_level(D6, 1);
+	gpio_set_level(D7, 1);
+	_us_delay(4);
 	gpio_set_level(D4, 0);
 	gpio_set_level(D5, 0);
 	gpio_set_level(D6, 0);
 	gpio_set_level(D7, 0);
+	gpio_set_level(RS, 0);
+	gpio_set_level(E, 0);
+	_us_delay(4);
 
-	//gpio_set_level(VDD, 1);
-        ESP_LOGI(TAG, "START");
-//        ESP_LOGI(TAG, "10");
-	gpio_set_level(E, 1);
-//        ESP_LOGI(TAG, "-");
-	_us_delay(5);
-//        ESP_LOGI(TAG, "5");
-	gpio_set_level(D4, 1);
-	gpio_set_level(D5, 1);
-	gpio_set_level(E, 0);
-	_us_delay(10);
-//        ESP_LOGI(TAG, "20");
-	gpio_set_level(E, 1);
-	_us_delay(5);
-//        ESP_LOGI(TAG, "5");
-	gpio_set_level(E, 0);
-	_us_delay(5);
-//        ESP_LOGI(TAG, "5");
-	gpio_set_level(E, 1);
-	_us_delay(5);
-//	ESP_LOGI(TAG, "5");
-	gpio_set_level(E, 0);
-	_us_delay(5);
-//        ESP_LOGI(TAG, "5");
-	gpio_set_level(E, 1);
-	_us_delay(5);
-//        ESP_LOGI(TAG, "10");
-	gpio_set_level(D4, 0);
-	gpio_set_level(E, 0);
-	_us_delay(5);
-//        ESP_LOGI(TAG, "5");
+        //gpio_set_level(VDD, 1);
+        _us_delay(20);
+        gpio_set_level(E, 1);
+        _us_delay(1);
+        gpio_set_level(D4, 1);
+        gpio_set_level(D5, 1);
+        gpio_set_level(E, 0);
+        _us_delay(4);
+        gpio_set_level(E, 1);
+        _us_delay(1);
+        gpio_set_level(E, 0);
+        _us_delay(1);
+        gpio_set_level(E, 1);
+        _us_delay(1);
+        gpio_set_level(E, 0);
+        _us_delay(1);
+        gpio_set_level(E, 1);
+        _us_delay(5);
+        gpio_set_level(D4, 0);
+        gpio_set_level(E, 0);
+        _us_delay(1);
+
 }
 
 static void command (unsigned char data)
 {
-	gpio_set_level(RS, 0);
-	gpio_set_level(E, 1);
-	_us_delay(2);
-//        ESP_LOGI(TAG, "10");
-	gpio_set_level(D4, 0);
-	gpio_set_level(D5, 0);
-	gpio_set_level(D6, 0);
-	gpio_set_level(D7, 0);
+	gpio_set_level(RS, 1);
+	gpio_set_level(E, 0);
+	_us_delay(150);
+	gpio_set_level(D4, 1);
+	gpio_set_level(D5, 1);
+	gpio_set_level(D6, 1);
+	gpio_set_level(D7, 1);
 
 	gpio_set_level(D7, (data&(1<<7))>>7);
 	gpio_set_level(D6, (data&(1<<6))>>6);
 	gpio_set_level(D5, (data&(1<<5))>>5);
 	gpio_set_level(D4, (data&(1<<4))>>4);
 
-	gpio_set_level(E, 0);
-	_us_delay(1);
-//        ESP_LOGI(TAG, "5");
 	gpio_set_level(E, 1);
 	_us_delay(1);
-//        ESP_LOGI(TAG, "5");
-	gpio_set_level(D4, 0);
-	gpio_set_level(D5, 0);
-	gpio_set_level(D6, 0);
-	gpio_set_level(D7, 0);
+	gpio_set_level(E, 0);
+	_us_delay(1);
+	gpio_set_level(D4, 1);
+	gpio_set_level(D5, 1);
+	gpio_set_level(D6, 1);
+	gpio_set_level(D7, 1);
 
 	gpio_set_level(D7, (data&(1<<3))>>3);
 	gpio_set_level(D6, (data&(1<<2))>>2);
 	gpio_set_level(D5, (data&(1<<1))>>1);
 	gpio_set_level(D4, data&1);
-	gpio_set_level(E, 0);
-	_us_delay(10);
-//        ESP_LOGI(TAG, "10");
+	gpio_set_level(E, 1);
+	_us_delay(2);
 }
 
 static void lcd_send (unsigned char data)
 {
-	gpio_set_level(RS, 1);
-	gpio_set_level(E, 1);
+	gpio_set_level(RS, 0);
+	gpio_set_level(E, 0);
 	_us_delay(1);
-//        ESP_LOGI(TAG, "5");
-	gpio_set_level(D4, 0);
-	gpio_set_level(D5, 0);
-	gpio_set_level(D6, 0);
-	gpio_set_level(D7, 0);
+	gpio_set_level(D4, 1);
+	gpio_set_level(D5, 1);
+	gpio_set_level(D6, 1);
+	gpio_set_level(D7, 1);
 
 	gpio_set_level(D7, (data&(1<<7))>>7);
 	gpio_set_level(D6, (data&(1<<6))>>6);
 	gpio_set_level(D5, (data&(1<<5))>>5);
 	gpio_set_level(D4, (data&(1<<4))>>4);
 
-	gpio_set_level(E, 0);
-	_us_delay(1);
-//        ESP_LOGI(TAG, "5");
 	gpio_set_level(E, 1);
 	_us_delay(1);
-//        ESP_LOGI(TAG, "5");
-	gpio_set_level(D4, 0);
-	gpio_set_level(D5, 0);
-	gpio_set_level(D6, 0);
-	gpio_set_level(D7, 0);
+	gpio_set_level(E, 0);
+	_us_delay(1);
+	gpio_set_level(D4, 1);
+	gpio_set_level(D5, 1);
+	gpio_set_level(D6, 1);
+	gpio_set_level(D7, 1);
 
 	gpio_set_level(D7, (data&(1<<3))>>3);
 	gpio_set_level(D6, (data&(1<<2))>>2);
 	gpio_set_level(D5, (data&(1<<1))>>1);
 	gpio_set_level(D4, data&1);
-	gpio_set_level(E, 0);
-	_us_delay(10);
-//        ESP_LOGI(TAG, "5");
+	gpio_set_level(E, 1);
+	_us_delay(1);
 }
 
 static void set_position (unsigned char stroka, unsigned char symb)
 {
 	command((0x40*stroka+symb)|0b10000000);
-	_us_delay(2);
 }
 
 static void lcd_intro()
@@ -487,28 +552,76 @@ static void lcd_intro()
 	gpio_pad_select_gpio(33);
 	gpio_pad_select_gpio(32);*/
 	//gpio_set_direction(LED, GPIO_MODE_OUTPUT);
+	gpio_set_direction(RS, GPIO_MODE_OUTPUT);
+	gpio_set_direction(E, GPIO_MODE_OUTPUT);
+	gpio_set_direction(D4, GPIO_MODE_OUTPUT);
+	gpio_set_direction(D5, GPIO_MODE_OUTPUT);
+	gpio_set_direction(D6, GPIO_MODE_OUTPUT);
+	gpio_set_direction(D7, GPIO_MODE_OUTPUT);
 
-//	gpio_set_direction(LED, GPIO_MODE_OUTPUT);
-/*	gpio_set_level(LED, 0);
+	gpio_set_direction(LED, GPIO_MODE_OUTPUT);
+	gpio_set_level(LED, 1);
+	gpio_set_level(D4, 1);
+	gpio_set_level(D5, 1);
+	gpio_set_level(D6, 1);
+	gpio_set_level(D7, 1);
+	gpio_set_level(RS, 1);
+	gpio_set_level(E, 1);
         ESP_LOGI(TAG, "Off");
 	_us_delay(1000);
-	gpio_set_level(LED, 1);
+	gpio_set_level(LED, 0);
+	gpio_set_level(D5, 0);
+	gpio_set_level(D6, 0);
+	gpio_set_level(D7, 0);
+	gpio_set_level(RS, 0);
+	gpio_set_level(E, 0);
+	gpio_set_level(D4, 0);
         ESP_LOGI(TAG, "ON");
 	_us_delay(1000);
-	gpio_set_level(LED, 0);
+	gpio_set_level(LED, 1);
+	gpio_set_level(D5, 1);
+	gpio_set_level(D6, 1);
+	gpio_set_level(D7, 1);
+	gpio_set_level(RS, 1);
+	gpio_set_level(E, 1);
+	gpio_set_level(D4, 1);
         ESP_LOGI(TAG, "OFF");
 	_us_delay(1000);
-	gpio_set_level(LED, 1);
+	gpio_set_level(LED, 0);
+	gpio_set_level(D5, 0);
+	gpio_set_level(D6, 0);
+	gpio_set_level(D7, 0);
+	gpio_set_level(RS, 0);
+	gpio_set_level(E, 0);
+	gpio_set_level(D4, 0);
         ESP_LOGI(TAG, "ON");
 	_us_delay(1000);
-	gpio_set_level(LED, 0);
+	gpio_set_level(LED, 1);
+	gpio_set_level(D5, 1);
+	gpio_set_level(D6, 1);
+	gpio_set_level(D7, 1);
+	gpio_set_level(RS, 1);
+	gpio_set_level(E, 1);
+	gpio_set_level(D4, 1);
         ESP_LOGI(TAG, "OFF");
 	_us_delay(1000);
-	gpio_set_level(LED, 1);
+	gpio_set_level(LED, 0);
+	gpio_set_level(D5, 0);
+	gpio_set_level(D6, 0);
+	gpio_set_level(D7, 0);
+	gpio_set_level(RS, 0);
+	gpio_set_level(E, 0);
+	gpio_set_level(D4, 0);
         ESP_LOGI(TAG, "ON");
 	_us_delay(1000);
-	gpio_set_level(LED, 0);
-        ESP_LOGI(TAG, "Off");*/
+	gpio_set_level(LED, 1);
+	gpio_set_level(D5, 1);
+	gpio_set_level(D6, 1);
+	gpio_set_level(D7, 1);
+	gpio_set_level(RS, 1);
+	gpio_set_level(E, 1);
+	gpio_set_level(D4, 1);
+        ESP_LOGI(TAG, "Off");
 
 	lcd_init();
 	//ESP_LOGI(TAG, "init");
@@ -519,8 +632,7 @@ static void lcd_intro()
 	//ESP_LOGI(TAG, "init2");
 	command(0b00000110); //cursor_right, no_display_shift
 	command(0b00000001);
-	_us_delay(20);
-//        ESP_LOGI(TAG, "20");
+	_us_delay(2);
 	//ESP_LOGI(TAG, "init3");
 	command(0b01000000);
 	//ESP_LOGI(TAG, "init4");
@@ -570,44 +682,42 @@ static void lcd_intro()
 	lcd_send(0b00011011);
 
 	set_position(0,0);
-	lcd_send(' ');_us_delay(50);
 	lcd_send('W');_us_delay(50);
-	lcd_send('i');_us_delay(50);
-	lcd_send('-');_us_delay(50);
-	lcd_send('F');_us_delay(50);
-	lcd_send('i');_us_delay(50);
-	lcd_send(' ');_us_delay(50);
-	lcd_send('s');_us_delay(50);
+	lcd_send('a');_us_delay(50);
+	lcd_send('k');_us_delay(50);
 	lcd_send('e');_us_delay(50);
-	lcd_send('n');_us_delay(50);
-	lcd_send('s');_us_delay(50);
+	lcd_send(' ');_us_delay(50);
+	lcd_send('u');_us_delay(50);
+	lcd_send('p');_us_delay(50);
+	lcd_send(',');_us_delay(50);
+	lcd_send(' ');_us_delay(50);
+	lcd_send('N');_us_delay(50);
+	lcd_send('e');_us_delay(50);
 	lcd_send('o');_us_delay(50);
-	lcd_send('r');_us_delay(50);
+	lcd_send('!');_us_delay(50);
 	lcd_send(' ');_us_delay(50);
 	lcd_send(4);_us_delay(50);
 
 	set_position(1,0);
-	lcd_send('v');_us_delay(50);
-	lcd_send('1');_us_delay(50);
-	lcd_send('.');_us_delay(50);
-	lcd_send('0');_us_delay(50);
+	lcd_send('Y');_us_delay(50);
+	lcd_send('o');_us_delay(50);
+	lcd_send('u');_us_delay(50);
 	lcd_send(' ');_us_delay(50);
-	lcd_send('(');_us_delay(50);
-	lcd_send('1');_us_delay(50);
-	lcd_send('5');_us_delay(50);
-	lcd_send('.');_us_delay(50);
-	lcd_send('0');_us_delay(50);
-	lcd_send('1');_us_delay(50);
-	lcd_send('.');_us_delay(50);
-	lcd_send('2');_us_delay(50);
-	lcd_send('3');_us_delay(50);
-	lcd_send(')');_us_delay(500);
+	lcd_send('o');_us_delay(50);
+	lcd_send('b');_us_delay(50);
+	lcd_send('o');_us_delay(50);
+	lcd_send('s');_us_delay(50);
+	lcd_send('r');_us_delay(50);
+	lcd_send('a');_us_delay(50);
+	lcd_send('l');_us_delay(50);
+	lcd_send('s');_us_delay(50);
+	lcd_send('y');_us_delay(50);
+	lcd_send('a');_us_delay(50);
+	lcd_send('!');_us_delay(50);
+	_us_delay(500);
 
-//        ESP_LOGI(TAG, "ON-3");
-//	_us_delay(3000);
-
-	gpio_set_level(LED, 1);
-//        ESP_LOGI(TAG, "ON");
+	gpio_set_level(LED, 0);
+        ESP_LOGI(TAG, "ON");
 
 }
 
@@ -621,297 +731,85 @@ uint8_t sign_max = 1;
 uint8_t max1 = 40;
 uint8_t max2 = 6;
 
-char array[17][15];
-int array_max[17];
-char rx_buffer[255];
-int len = 0;
-
-
-static void calculate_data()
+static void lcd_show()
 {
-//rx_buffer[]="Date: 2022-10-29 Time: 21:16:51 Voltage: 5100mV temp: +25.81C min: +25.06C max: +26.00C";
-//len = 128;
-//rx_buffer="Date: 2023-01-15 Time: 15:26:31 Voltage: 12860mV temp: +25.16C min: +24.88C max: +25.16C hum: 37.1% pres: 957.8hPa (718.0mmHg)";
-//rx_buffer[127] = 0;
-//	len = sizeof(rx_buffer);
 	command(0b00000001);
-        _us_delay(50);
-	uint8_t second = rx_buffer[30]-48;
-//	ESP_LOGI (TAG, "len: %d", len);
-	int part_num = 0;
-	int cut1 = 0;
-	int cut2 = 0;
-	for (int i = 0; i < len; i++)
-	{
-		if ((rx_buffer[i] != ' ')&&(i != len-1))
-		{
-			cut2++;
-		}
-		else
-		{
-			int samples = cut2-cut1+1;
-			array_max[part_num] = samples - 1;
-			int cut0 = 0;
-			char temp_array[samples];
-			while(cut0<samples-1)
-			{
-				temp_array[cut0] = rx_buffer[cut1];
-				cut1++;
-				cut0++;
-			}
-	//		char array[part_num][samples];
-
-			for (int j=0; j<samples-1; j++)
-			{
-				array[part_num][j]=temp_array[j];
-			}
-			array[part_num][samples-1] = 0;
-			cut2++;
-			cut1 = cut2;
-//			ESP_LOGI (TAG, "i: %d, part_num: %d, array: %s", i, part_num, (char*) array[part_num]);
-//			ESP_LOGI (TAG, "i: %d, array2: %s", i, (char *) temp_char);
-//			ESP_LOGI (TAG, "%d: %s (%d)", part_num, (char*) array[part_num], sizeof (array[part_num]) );
-			part_num++;
-		}
-	}
-
-
-	for (int i=0; i<17; i++)
-	{
-		switch (i)
-		{
-		case 3: //time
-		        set_position(0,8);
-			break;
-
-		case 5: //voltage
-		        set_position(1,0);
-			break;
-
-		case 7: //temp
-		        set_position(0,0);
-			break;
-
-		case 9: //min
-		        set_position(1,8);
-			break;
-
-		case 11: //max
-		        set_position(0,8);
-			break;
-
-		case 13: //humidity
-		        set_position(1,11);
-			break;
-
-		case 16: //pressure
-	        	set_position(1,0);
-			break;
-		}
-
-		if (((second < 5) && (i == 5 || i == 7)) || ((second >= 5) && (i == 3 || i == 7 || i == 13)))
-		{
-			for (int j=0; j<array_max[i]; j++)
-			lcd_send((char) array[i][j]);
-		}
-		else if ((second >= 5) && (i == 16))
-		{
-			for (int j=1; j<10; j++)
-			lcd_send((char) array[i][j]);
-		}
-		else if ((second < 5) && (i == 9))
-		{
-		        lcd_send(1);
-			for (int j=0; j<array_max[i]; j++)
-			lcd_send((char) array[i][j]);
-		}
-		else if ((second < 5) && (i == 11))
-		{
-		        lcd_send(0);
-			for (int j=0; j<array_max[i]; j++)
-			lcd_send((char) array[i][j]);
-		}
-	}
-//	for (int j=0; j<i-1; j++)
-//	{
-//		ESP_LOGI (TAG, "%d: %s", j, (char*) array[j]);
-//	}
+	_us_delay(200);
+	set_position(0,0);
+	if (sign==1) lcd_send('+'); else lcd_send('-');
+	if ((digit%100/10)!=0) lcd_send(48+digit%100/10);
+	lcd_send(48+digit%100%10);
+	lcd_send('.');
+	lcd_send(48+decimal%10000/1000);
+	lcd_send(2);
+	lcd_send('C');
+	set_position(1,8);
+	lcd_send(1);
+	if (sign_min==1) lcd_send('+'); else lcd_send('-');
+	if ((min1%100/10)!=0) lcd_send(48+min1%100/10);
+	lcd_send(48+min1%100%10);
+	lcd_send('.');
+	lcd_send(48+min2%10000/1000);
+	lcd_send(2);
+	lcd_send('C');
+	set_position(0,8);
+	lcd_send(0);
+	if (sign_max==1) lcd_send('+'); else lcd_send('-');
+	if ((max1%100/10)!=0) lcd_send(48+max1%100/10);
+	lcd_send(48+max1%100%10);
+	lcd_send('.');
+	lcd_send(48+max2%10000/1000);
+	lcd_send(2);
+	lcd_send('C');
 }
-
-static void tcp_client_task(void *pvParameters)
-{
-    char addr_str[128];
-    int addr_family;
-    int ip_protocol;
-
-	while(1)
-	{
-        struct sockaddr_in destAddr;
-        destAddr.sin_addr.s_addr = inet_addr(HOST_IP_ADDR);
-        destAddr.sin_family = AF_INET;
-        destAddr.sin_port = htons(PORT);
-        addr_family = AF_INET;
-        ip_protocol = IPPROTO_IP;
-        inet_ntoa_r(destAddr.sin_addr, addr_str, sizeof(addr_str) - 1);
-
-		int sock =  socket(addr_family, SOCK_STREAM, ip_protocol);
-        if (sock < 0) {
-            ESP_LOGE(TAG, "Unable to create socket: errno %d", errno);
-            break;
-        }
-        ESP_LOGI(TAG, "Socket created");
-
-        int err = connect(sock, (struct sockaddr *)&destAddr, sizeof(destAddr));
-        if (err != 0) {
-            ESP_LOGE(TAG, "Socket unable to connect: errno %d", errno);
-            close(sock);
-            continue;
-        }
-        ESP_LOGI(TAG, "Successfully connected");
-
-        while (1) {
-  /*          int err = send(sock, payload, strlen(payload), 0);
-            if (err < 0) {
-                ESP_LOGE(TAG, "Error occured during sending: errno %d", errno);
-                break;
-            }*/
-
-            len = recv(sock, rx_buffer, sizeof(rx_buffer) - 1, 0);
-            // Error occured during receiving
-            if (len < 0) {
-                ESP_LOGE(TAG, "recv failed: errno %d", errno);
-                break;
-            }
-	    else if ((len < 64) | (len > 250)) {
-                ESP_LOGW(TAG, "incorrect packet size");
-		continue;
-		}
-            // Data received
-            else {
-                rx_buffer[len] = 0; // Null-terminate whatever we received and treat like a string
-                ESP_LOGI(TAG, "Received %d bytes from %s:", len, addr_str);
-                ESP_LOGI(TAG, "%s", (char *) rx_buffer);
-		calculate_data();
-            }
-
-            vTaskDelay(100 / portTICK_PERIOD_MS);
-        }
-
-        if (sock != -1) {
-            ESP_LOGE(TAG, "Shutting down socket and restarting...");
-            shutdown(sock, 0);
-            close(sock);
-	}
-    }
-}
-
-
 
 void app_main(void)
 {
+    ESP_LOGI(TAG, "1");
+
+    gpio_config_t io_conf;
+    io_conf.intr_type = GPIO_INTR_DISABLE;
+    io_conf.mode = GPIO_MODE_OUTPUT;
+    io_conf.pin_bit_mask = GPIO_OUTPUT_PIN_SEL;
+    io_conf.pull_down_en = 0;
+    io_conf.pull_up_en = 0;
+    gpio_config(&io_conf);
+
+    io_conf.intr_type = GPIO_INTR_DISABLE;
+    io_conf.mode = GPIO_MODE_OUTPUT;
+    io_conf.pin_bit_mask = GPIO_OUTPUT_PIN_SEL2;
+    io_conf.pull_down_en = 0;
+    io_conf.pull_up_en = 0;
+    gpio_config(&io_conf);
+
+    ESP_LOGI(TAG, "2");
+
+
 //    ESP_ERROR_CHECK(nvs_flash_init());
 //    ESP_ERROR_CHECK(esp_netif_init());
 //    ESP_ERROR_CHECK(esp_event_loop_create_default());
 
    // ESP_ERROR_CHECK(example_connect());
+	lcd_intro();
+    ESP_LOGI(TAG, "3");
 
-        lcd_intro();
-	command(0b00000001);
-        _us_delay(50);
+	lcd_show();
+    ESP_LOGI(TAG, "4");
 
-	set_position(0,0);
-	lcd_send('W');
-	lcd_send('i');
-	lcd_send('-');
-	lcd_send('F');
-	lcd_send('i');
-	lcd_send(' ');
-	lcd_send('s');
-	lcd_send('c');
-	lcd_send('a');
-	lcd_send('n');
-	lcd_send('.');
-	lcd_send('.');
-	lcd_send('.');
-	lcd_send(' ');
+//	wifi_scan();
+//	sntp_example_task();
+	adc_config_t adc_config;
+	adc_config.mode = ADC_READ_TOUT_MODE;
+	adc_config.clk_div = 8;
+	ESP_ERROR_CHECK(adc_init(&adc_config));
+//	xSemaphore = xSemaphoreCreateBinary();
+//	if( xSemaphore == NULL ) ESP_LOGI(TAG, "Cannot create semaphore"); else ESP_LOGI(TAG, "Semaphore created"); 
+//	xTaskCreate(tcp_client_task, "tcp_client", 4096, NULL, 5, NULL);
+	//xTaskCreate(tcp_server_task, "tcp_server", 4096, (void*)AF_INET, 5, NULL);
 
-	wifi_scan();
-	lcd_send('O');
-	lcd_send('K');
-	set_position(1,0);
-	lcd_send('T');
-	lcd_send('i');
-	lcd_send('m');
-	lcd_send('e');
-	lcd_send(' ');
-	lcd_send('s');
-	lcd_send('y');
-	lcd_send('n');
-	lcd_send('c');
-	lcd_send('.');
-	lcd_send('.');
-	lcd_send('.');
-	lcd_send(' ');
-	lcd_send(' ');
-	sntp_example_task();
-	lcd_send('O');
-	lcd_send('K');
-	command(0b00000001);
-        _us_delay(50);
-	set_position(0,0);
-	lcd_send('W');
-	lcd_send('i');
-	lcd_send('-');
-	lcd_send('F');
-	lcd_send('i');
-	lcd_send(' ');
-	lcd_send('c');
-	lcd_send('o');
-	lcd_send('n');
-	lcd_send('n');
-	lcd_send('e');
-	lcd_send('c');
-	lcd_send('t');
-	lcd_send(' ');
-
-
-//	adc_config_t adc_config;
-//	adc_config.mode = ADC_READ_TOUT_MODE;
-//	adc_config.clk_div = 8;
-//	ESP_ERROR_CHECK(adc_init(&adc_config));
-	xSemaphore = xSemaphoreCreateBinary();
-	if( xSemaphore == NULL ) ESP_LOGI(TAG, "Cannot create semaphore"); else ESP_LOGI(TAG, "Semaphore created"); 
-	xTaskCreate(tcp_client_task, "tcp_client", 4096, NULL, 5, NULL);
-//	xTaskCreate(tcp_server_task, "tcp_server", 4096, (void*)AF_INET, 5, NULL);
-	lcd_send('O');
-	lcd_send('K');
-	set_position(1,0);
-
-	lcd_send('S');
-	lcd_send('e');
-	lcd_send('n');
-	lcd_send('s');
-	lcd_send('o');
-	lcd_send('r');
-	lcd_send(' ');
-	lcd_send('c');
-	lcd_send('o');
-	lcd_send('n');
-	lcd_send('n');
-	lcd_send('e');
-	lcd_send('c');
-	lcd_send('t');
-	lcd_send('.');
-	lcd_send('.');
-
-
-//calculate_data();
 	while(1)
 	{
-            vTaskDelay(100 / portTICK_PERIOD_MS);
-
-//	vTaskDelay(10 / portTICK_RATE_MS);
-//		vTaskDelay(10);
+		vTaskDelay(10);
 	}
 	ESP_LOGI(TAG, "After xTask");
 	//tcp_server_task((void*)AF_INET);
