@@ -34,10 +34,8 @@
 
 #define DEFAULT_SCAN_LIST_SIZE 20
 #define EXAMPLE_ESP_MAXIMUM_RETRY 5
-#define EXAMPLE_ESP_WIFI_SSID "3-Ogorodnaya-55"
-#define EXAMPLE_ESP_WIFI_PASS "@REN@-$0b@k@"
-//#define EXAMPLE_ESP_WIFI_SSID "RADIUS-3"
-//#define EXAMPLE_ESP_WIFI_PASS "temp-s0jdvbrjrv"
+#define EXAMPLE_ESP_WIFI_SSID "test"
+#define EXAMPLE_ESP_WIFI_PASS "testtest"
 
 #define HOST_IP_ADDR "192.168.1.47"
 #define PORT 3333
@@ -47,8 +45,6 @@
 #define KEEPALIVE_IDLE 60
 #define KEEPALIVE_INTERVAL 10
 #define KEEPALIVE_COUNT 10
-//.ssid = "3-Ogorodnaya-55",
-//.password = "@REN@-$0b@k@",
 
 static EventGroupHandle_t s_wifi_event_group;
 
