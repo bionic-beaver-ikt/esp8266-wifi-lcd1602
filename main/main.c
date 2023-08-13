@@ -9,8 +9,7 @@
 #include "driver/gpio.h"
 #include "string.h"
 #include "freertos/FreeRTOS.h"
-#include "freertos/event_groups.h"
-#include "freertos/task.h"
+
 #include "driver/adc.h"
 #include "esp_wifi.h"
 #include "lwip/err.h"
@@ -21,32 +20,16 @@
 #include "driver/uart.h"
 #include "esp_timer.h"
 #include "wifi_part.h"
+#include "lcd_part.h"
 
-#define RS 13
-#define E 12
-#define D4 14
-#define D5 16
-#define D6 4
-#define D7 5
 #define LED 2
 
-#define GPIO_OUTPUT_PIN_SEL  ((1ULL<<RS) | (1ULL<<E) | (1ULL<<LED))
-#define GPIO_OUTPUT_PIN_SEL2 ((1ULL<<D4) | (1ULL<<D5) | (1ULL<<D6) | (1ULL<<D7))
-
-static void command (unsigned char data);
-static void lcd_send (unsigned char data);
-static void lcd_sendstr (char* data);
-static void lcd_init ();
-static void set_position (unsigned char stroka, unsigned char symb);
-
 static const char *TAG = "TEMP VIEWER";
-static int s_retry_num = 0;
+
 
 SemaphoreHandle_t xSemaphore;
-time_t now;
-    struct tm timeinfo;
 
-static void _us_delay(uint32_t time_us)
+void _us_delay(uint32_t time_us)
 {
 //    ets_delay_us(time_us*1000);
     //    os_delay_us(time_us);
@@ -54,292 +37,30 @@ static void _us_delay(uint32_t time_us)
 //	vTaskDelay(time_us);
 }
 
-static void _delay(uint32_t time_us)
-{
-//    ets_delay_us(time_us*1000);
-    //    os_delay_us(time_us);
-	vTaskDelay(time_us / portTICK_PERIOD_MS);
-	//vTaskDelay(time_us);
-}
-
-static void lcd_init()
-{
-    gpio_config_t io_conf;
-    io_conf.intr_type = GPIO_INTR_DISABLE;
-    io_conf.mode = GPIO_MODE_OUTPUT;
-    io_conf.pin_bit_mask = GPIO_OUTPUT_PIN_SEL;
-    io_conf.pull_down_en = 0;
-    io_conf.pull_up_en = 0;
-    gpio_config(&io_conf);
-
-    io_conf.intr_type = GPIO_INTR_DISABLE;
-    io_conf.mode = GPIO_MODE_OUTPUT;
-    io_conf.pin_bit_mask = GPIO_OUTPUT_PIN_SEL2;
-    io_conf.pull_down_en = 0;
-    io_conf.pull_up_en = 0;
-    gpio_config(&io_conf);
-
-    Timer1 = esp_timer_get_time();
-	_delay(1); //14
-	Timer2 = esp_timer_get_time();
-	diff = Timer2 - Timer1;
-	printf("Difference: %lld mks\n", diff);
-
-	_delay(50); //50ms
-	vTaskDelay(10 / portTICK_PERIOD_MS); //10ms
-	vTaskDelay(50 / portTICK_PERIOD_MS); //50ms
-	vTaskDelay(1); //10ms
-	vTaskDelay(10); //100ms
-	vTaskDelay(15); //150ms
-	vTaskDelay(50); //500ms
-
-//	gpio_set_level(VDD, 0);
-	gpio_set_level(RS, 0);
-	gpio_set_level(E, 0);
-	gpio_set_level(D4, 0);
-	gpio_set_level(D5, 0);
-	gpio_set_level(D6, 0);
-	gpio_set_level(D7, 0);
-	//_delay(10);
-	//gpio_set_level(VDD, 1);
-
-    ESP_LOGI(TAG, "START");
-	gpio_set_level(E, 1);
-    ESP_LOGI(TAG, "-");
-	_delay(10);
-    ESP_LOGI(TAG, "10");
-	gpio_set_level(D4, 1);
-	gpio_set_level(D5, 1);
-	gpio_set_level(E, 0);
-	_delay(10);
-    ESP_LOGI(TAG, "10");
-	gpio_set_level(E, 1);
-	_delay(10);
-    ESP_LOGI(TAG, "10");
-	gpio_set_level(E, 0);
-	_delay(10);
-    ESP_LOGI(TAG, "10");
-	gpio_set_level(E, 1);
-	_delay(10);
-	ESP_LOGI(TAG, "10");
-	gpio_set_level(E, 0);
-	_delay(10);
-    ESP_LOGI(TAG, "10");
-	gpio_set_level(E, 1);
-	_delay(10);
-    ESP_LOGI(TAG, "10");
-	gpio_set_level(D4, 0);
-	gpio_set_level(E, 0);
-	_delay(10);
-    ESP_LOGI(TAG, "10");
-
-    command(0b00101000); //4-bit, 2-lines
-    command(0b00001100); //display_on, cursor_off, blink_off
-    //command(0b00001111); //display_on, cursor_on, blink_on
-    command(0b00000110); //cursor_right, no_display_shift
-
-    command(0b01000000);
-    lcd_send(0b00000100);
-    lcd_send(0b00001110);
-    lcd_send(0b00010101);
-    lcd_send(0b00000100);
-    lcd_send(0b00000100);
-    lcd_send(0b00000100);
-    lcd_send(0b00000100);
-    lcd_send(0b00000100);
-
-    lcd_send(0b00000100);
-    lcd_send(0b00000100);
-    lcd_send(0b00000100);
-    lcd_send(0b00000100);
-    lcd_send(0b00000100);
-    lcd_send(0b00010101);
-    lcd_send(0b00001110);
-    lcd_send(0b00000100);
-
-    lcd_send(0b00000110);
-    lcd_send(0b00001001);
-    lcd_send(0b00001001);
-    lcd_send(0b00000110);
-    lcd_send(0b00000000);
-    lcd_send(0b00000000);
-    lcd_send(0b00000000);
-    lcd_send(0b00000000);
-
-    lcd_send(0b00001111);
-    lcd_send(0b00000111);
-    lcd_send(0b00000111);
-    lcd_send(0b00000011);
-    lcd_send(0b00000011);
-    lcd_send(0b00000001);
-    lcd_send(0b00000001);
-    lcd_send(0b00000000);
-
-    lcd_send(0b00010001);
-    lcd_send(0b00001110);
-    lcd_send(0b00010001);
-    lcd_send(0b00010101);
-    lcd_send(0b00010001);
-    lcd_send(0b00001110);
-    lcd_send(0b00001010);
-    lcd_send(0b00011011);
-
-    command(0b00000001);
-    _delay(20);
-}
-
-static void command (unsigned char data)
-{
-	gpio_set_level(RS, 0);
-	gpio_set_level(E, 1);
-	_delay(1);_delay(1);_delay(1);_delay(1);
-//        ESP_LOGI(TAG, "10");
-	gpio_set_level(D4, 0);
-	gpio_set_level(D5, 0);
-	gpio_set_level(D6, 0);
-	gpio_set_level(D7, 0);
-
-	gpio_set_level(D7, (data&(1<<7))>>7);
-	gpio_set_level(D6, (data&(1<<6))>>6);
-	gpio_set_level(D5, (data&(1<<5))>>5);
-	gpio_set_level(D4, (data&(1<<4))>>4);
-
-	gpio_set_level(E, 0);
-	_delay(1);_delay(1);_delay(1);_delay(1);
-//        ESP_LOGI(TAG, "5");
-	gpio_set_level(E, 1);
-	_delay(1);_delay(1);_delay(1);_delay(1);
-//        ESP_LOGI(TAG, "5");
-	gpio_set_level(D4, 0);
-	gpio_set_level(D5, 0);
-	gpio_set_level(D6, 0);
-	gpio_set_level(D7, 0);
-
-	gpio_set_level(D7, (data&(1<<3))>>3);
-	gpio_set_level(D6, (data&(1<<2))>>2);
-	gpio_set_level(D5, (data&(1<<1))>>1);
-	gpio_set_level(D4, data&1);
-	gpio_set_level(E, 0);
-	_delay(1);_delay(1);_delay(1);_delay(1);
-//        ESP_LOGI(TAG, "10");
-}
-
-static void lcd_sendstr (char* data)
-{
-	for(int i = 0; i < 16; i++)
-	{
-		if (!data[i]) break;
-		lcd_send(data[i]);
-	}
-}
-
-static void lcd_send (unsigned char data)
-{
-	gpio_set_level(RS, 1);
-	gpio_set_level(E, 1);
-	_delay(1);_delay(1);_delay(1);_delay(1);
-//        ESP_LOGI(TAG, "5");
-	gpio_set_level(D4, 0);
-	gpio_set_level(D5, 0);
-	gpio_set_level(D6, 0);
-	gpio_set_level(D7, 0);
-
-	gpio_set_level(D7, (data&(1<<7))>>7);
-	gpio_set_level(D6, (data&(1<<6))>>6);
-	gpio_set_level(D5, (data&(1<<5))>>5);
-	gpio_set_level(D4, (data&(1<<4))>>4);
-
-	gpio_set_level(E, 0);
-	_delay(1);_delay(1);_delay(1);_delay(1);
-//        ESP_LOGI(TAG, "5");
-	gpio_set_level(E, 1);
-	_delay(1);_delay(1);_delay(1);_delay(1);
-//        ESP_LOGI(TAG, "5");
-	gpio_set_level(D4, 0);
-	gpio_set_level(D5, 0);
-	gpio_set_level(D6, 0);
-	gpio_set_level(D7, 0);
-
-	gpio_set_level(D7, (data&(1<<3))>>3);
-	gpio_set_level(D6, (data&(1<<2))>>2);
-	gpio_set_level(D5, (data&(1<<1))>>1);
-	gpio_set_level(D4, data&1);
-	gpio_set_level(E, 0);
-	_delay(1);_delay(1);_delay(1);_delay(1);
-}
-
-static void set_position (unsigned char stroka, unsigned char symb)
-{
-	command((0x40*stroka+symb)|0b10000000);
-	_delay(1);_delay(1);_delay(1);_delay(1);
-}
-
 static void led_blink()
 {
 	gpio_set_level(LED, 0);
         ESP_LOGI(TAG, "Off");
-	_delay(500);
+	vTaskDelay(300 / portTICK_PERIOD_MS);
 	gpio_set_level(LED, 1);
         ESP_LOGI(TAG, "ON");
-	_delay(500);
+	vTaskDelay(300 / portTICK_PERIOD_MS);
 	gpio_set_level(LED, 0);
         ESP_LOGI(TAG, "OFF");
-	_delay(500);
+	vTaskDelay(300 / portTICK_PERIOD_MS);
 	gpio_set_level(LED, 1);
         ESP_LOGI(TAG, "ON");
-	_delay(500);
+	vTaskDelay(300 / portTICK_PERIOD_MS);
 	gpio_set_level(LED, 0);
         ESP_LOGI(TAG, "OFF");
-	_delay(500);
+	vTaskDelay(300 / portTICK_PERIOD_MS);
 	gpio_set_level(LED, 1);
         ESP_LOGI(TAG, "ON");
-	_delay(500);
+	vTaskDelay(300 / portTICK_PERIOD_MS);
 	gpio_set_level(LED, 0);
         ESP_LOGI(TAG, "Off");
-}
-
-static void lcd_intro()
-{
-	//set_position(0,0);
-	lcd_send(' ');_delay(50);
-	lcd_send('W');_delay(50);
-	lcd_send('i');_delay(50);
-	lcd_send('-');_delay(50);
-	lcd_send('F');_delay(50);
-	lcd_send('i');_delay(50);
-	lcd_send(' ');_delay(50);
-	lcd_send('s');_delay(50);
-	lcd_send('e');_delay(50);
-	lcd_send('n');_delay(50);
-	lcd_send('s');_delay(50);
-	lcd_send('o');_delay(50);
-	lcd_send('r');_delay(50);
-	lcd_send(' ');_delay(50);
-	lcd_send(4);_delay(50);
-
-	set_position(1,0);
-	lcd_send('v');_delay(50);
-	lcd_send('0');_delay(50);
-	lcd_send('.');_delay(50);
-	lcd_send('1');_delay(50);
-	lcd_send(' ');_delay(50);
-	lcd_send('(');_delay(50);
-	lcd_send('1');_delay(50);
-	lcd_send('1');_delay(50);
-	lcd_send('.');_delay(50);
-	lcd_send('0');_delay(50);
-	lcd_send('5');_delay(50);
-	lcd_send('.');_delay(50);
-	lcd_send('2');_delay(50);
-	lcd_send('3');_delay(50);
-	lcd_send(')');_delay(1000);
-
-//        ESP_LOGI(TAG, "ON-3");
-//	vTaskDelay(3000);
-
+        vTaskDelay(300 / portTICK_PERIOD_MS);
 	gpio_set_level(LED, 1);
-//        ESP_LOGI(TAG, "ON");
-
 }
 
 uint8_t sign = 1;
@@ -355,7 +76,7 @@ uint8_t max2 = 6;
 char array[17][15];
 int array_max[17];
 
-static void calculate_data()
+void calculate_data(int len)
 {
 //rx_buffer[]="Date: 2022-10-29 Time: 21:16:51 Voltage: 5100mV temp: +25.81C min: +25.06C max: +26.00C";
 //len = 128;
@@ -403,7 +124,7 @@ static void calculate_data()
 	}
 
 	command(0b00000001);
-        _delay(20);
+        vTaskDelay(25 / portTICK_PERIOD_MS);
 	for (int i=0; i<17; i++)
 	{
 		switch (i)
@@ -466,20 +187,107 @@ static void calculate_data()
 //	}
 }
 
+void tcp_client_task(void *pvParameters)
+{
+    char addr_str[128];
+    int addr_family;
+    int ip_protocol;
+
+	while(1)
+	{
+        struct sockaddr_in destAddr;
+        destAddr.sin_addr.s_addr = inet_addr(HOST_IP_ADDR);
+        destAddr.sin_family = AF_INET;
+        destAddr.sin_port = htons(PORT);
+        addr_family = AF_INET;
+        ip_protocol = IPPROTO_IP;
+        inet_ntoa_r(destAddr.sin_addr, addr_str, sizeof(addr_str) - 1);
+
+	int sock =  socket(addr_family, SOCK_STREAM, ip_protocol);
+        if (sock < 0) {
+            ESP_LOGE(TAG, "Unable to create socket: errno %d", errno);
+            break;
+        }
+        ESP_LOGI(TAG, "Socket created");
+	struct timeval to;
+	to.tv_sec = 8;
+        to.tv_usec = 0;
+        int result_recv_timeout = setsockopt(sock,SOL_SOCKET,SO_RCVTIMEO,&to,sizeof(to));
+	if (result_recv_timeout < 0)     
+        {
+        
+            ESP_LOGI(TAG, "Unable to set read timeout on socket! %d", result_recv_timeout);
+        }
+	else
+	ESP_LOGE(TAG, "SO_RCVTIMEO: ON");
+
+        int err = connect(sock, (struct sockaddr *)&destAddr, sizeof(destAddr));
+        if (err != 0) {
+            ESP_LOGE(TAG, "Socket unable to connect: errno %d", errno);
+            close(sock);
+            continue;
+        }
+        ESP_LOGI(TAG, "Successfully connected");
+
+        while (1) {
+  	    /*int err = send(sock, payload, strlen(payload), 0);
+            if (err < 0) {
+                ESP_LOGE(TAG, "Error occured during sending: errno %d", errno);
+                break;
+            }*/
+
+            int len = recv(sock, rx_buffer, sizeof(rx_buffer) - 1, 0);
+            // Error occured during receiving
+            if (len < 0) {
+                ESP_LOGE(TAG, "recv failed: errno %d", errno);
+                break;
+            }
+	    //else if ((len < 64) | (len > 250)) {
+	    else if (len != 128) {
+                ESP_LOGW(TAG, "incorrect packet size: %d", len);
+                //vTaskDelay(2000 / portTICK_PERIOD_MS);
+		continue;
+		}
+            // Data received
+            else {
+                rx_buffer[len] = 0; // Null-terminate whatever we received and treat like a string
+                //ESP_LOGI(TAG, "Received %d bytes from %s:", len, addr_str);
+                ESP_LOGI(TAG, "(%d) %s", len, (char *) rx_buffer);
+		calculate_data(len);
+            }
+            vTaskDelay(100 / portTICK_PERIOD_MS);
+        }
+
+        if (sock != -1) {
+            ESP_LOGE(TAG, "Shutting down socket and restarting...");
+            shutdown(sock, 0);
+            close(sock);
+		}
+    }
+}
+
 void app_main(void)
 {
+gpio_config_t io_conf;
+    io_conf.intr_type = GPIO_INTR_DISABLE;
+    io_conf.mode = GPIO_MODE_OUTPUT;
+    io_conf.pin_bit_mask = (1ULL<<LED);
+    io_conf.pull_down_en = 0;
+    io_conf.pull_up_en = 0;
+    gpio_config(&io_conf);
+    
 //    ESP_ERROR_CHECK(nvs_flash_init());
 //    ESP_ERROR_CHECK(esp_netif_init());
 //    ESP_ERROR_CHECK(esp_event_loop_create_default());
 
-   // ESP_ERROR_CHECK(example_connect());
+   // ESP_ERROR_CHECK(connect());
 
-       lcd_init();
+	lcd_init();
 	led_blink();
-    lcd_intro();
+	lcd_intro();
 
 	command(0b00000001);
-	_delay(10);
+	vTaskDelay(20 / portTICK_PERIOD_MS);
 
 	set_position(0,0);
 	char sendstr[17];
@@ -491,12 +299,12 @@ void app_main(void)
 	set_position(1,0);
 	strcpy(sendstr, "Time sync...  \0");
 	lcd_sendstr(sendstr);
-	sntp_example_task();
+	sntp_task();
 	lcd_send('O');
 	lcd_send('K');
-	_delay(100);
+	vTaskDelay(500 / portTICK_PERIOD_MS);
 	command(0b00000001);
-	_delay(10);
+	vTaskDelay(20 / portTICK_PERIOD_MS);
 	set_position(0,0);
 	strcpy(sendstr, "Wi-Fi connect...");
 	lcd_sendstr(sendstr);

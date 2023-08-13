@@ -9,13 +9,19 @@
 #include "driver/uart.h"
 #include "esp_timer.h"
 #include "wifi_part.h"
+#include "esp_event.h"
 
-static void event_handler(void* arg, esp_event_base_t event_base, int32_t event_id, void* event_data)
+static const char *TAG = "WIFI MODULE";
+
+static EventGroupHandle_t s_wifi_event_group;
+
+/*void event_handler(void* arg, esp_event_base_t event_base, int32_t event_id, void* event_data)
 {
+	int s_retry_num = 0;
     if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_START) {
         esp_wifi_connect();
     } else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_DISCONNECTED) {
-        if (s_retry_num < EXAMPLE_ESP_MAXIMUM_RETRY) {
+        if (s_retry_num < ESP_MAXIMUM_RETRY) {
             esp_wifi_connect();
             s_retry_num++;
             ESP_LOGI(TAG, "retry to connect to the AP");
@@ -29,9 +35,62 @@ static void event_handler(void* arg, esp_event_base_t event_base, int32_t event_
         s_retry_num = 0;
         xEventGroupSetBits(s_wifi_event_group, WIFI_CONNECTED_BIT);
     }
+}*/
+
+void event_handler(void* arg, esp_event_base_t event_base, int32_t event_id, void* event_data)
+{
+	int s_retry_num = 0;
+    if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_START) {
+		ESP_LOGI(TAG, "WIFI_EVENT_STA_START");
+        esp_wifi_connect();
+    }
+	else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_WIFI_READY) {
+		ESP_LOGI(TAG, "WIFI_EVENT_WIFI_READY");
+    }
+	else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_SCAN_DONE) {
+		ESP_LOGI(TAG, "WIFI_EVENT_SCAN_DONE");
+    }
+	else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_STOP) {
+		ESP_LOGI(TAG, "WIFI_EVENT_STA_STOP");
+    }
+	else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_CONNECTED) {
+	//	connect_enable = true;
+		ESP_LOGI(TAG, "connect ENABLE");
+		ESP_LOGI(TAG, "WIFI_EVENT_STA_CONNECTED");
+    }
+/*	else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_BEACON_TIMEOUT) {
+		ESP_LOGI(TAG, "Get State: %d", eTaskGetState(xHandle));
+		ESP_LOGI(TAG, "WIFI_EVENT_STA_BEACON_TIMEOUT");
+    } */
+	else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_DISCONNECTED) {
+	//	connect_enable = false;
+		ESP_LOGI(TAG, "connect DISABLE");
+		ESP_LOGI(TAG, "WIFI_EVENT_STA_DISCONNECTED");
+        if (s_retry_num < ESP_MAXIMUM_RETRY) {
+			ESP_LOGI(TAG, "retry to connect: %d/%d", s_retry_num, ESP_MAXIMUM_RETRY);
+           	esp_wifi_connect();
+           	s_retry_num++;
+			vTaskDelay(1);
+        }
+		else {
+			ESP_LOGI(TAG, "cannot to connect");
+            xEventGroupSetBits(s_wifi_event_group, WIFI_FAIL_BIT);
+        	ESP_LOGI(TAG,"connect to the AP fail");
+		}
+    }
+	else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP) {
+		ESP_LOGI(TAG, "IP_EVENT_STA_GOT_IP");
+	        ip_event_got_ip_t* event = (ip_event_got_ip_t*) event_data;
+        	ESP_LOGI(TAG, "got ip:" IPSTR, IP2STR(&event->ip_info.ip));
+        	s_retry_num = 0;
+        	xEventGroupSetBits(s_wifi_event_group, WIFI_CONNECTED_BIT);
+			//example_set_static_ip(arg);
+    	}
+	else ESP_LOGI(TAG,"ELSE!!! %d-%d", (int) event_base, (int)event_id);
 }
 
-static void initialize_sntp(void)
+
+void initialize_sntp(void)
 {
     ESP_LOGI(TAG, "Initializing SNTP");
     sntp_setoperatingmode(SNTP_OPMODE_POLL);
@@ -39,7 +98,7 @@ static void initialize_sntp(void)
     sntp_init();
 }
 
-static void obtain_time(void)
+void obtain_time(void)
 {
     initialize_sntp();
     time_t now = 0;
@@ -55,7 +114,7 @@ static void obtain_time(void)
     }
 }
 
-static void sntp_example_task()
+void sntp_task()
 {
 	char strftime_buf[64];
 	time(&now);
@@ -77,7 +136,7 @@ static void sntp_example_task()
     }
 }
 
-static void print_auth_mode(int authmode)
+void print_auth_mode(int authmode)
 {
     switch (authmode) {
     case WIFI_AUTH_OPEN:
@@ -110,7 +169,7 @@ static void print_auth_mode(int authmode)
     }
 }
 
-static void print_cipher_type(int pairwise_cipher, int group_cipher)
+void print_cipher_type(int pairwise_cipher, int group_cipher)
 {
     switch (pairwise_cipher) {
     case WIFI_CIPHER_TYPE_NONE:
@@ -161,7 +220,7 @@ static void print_cipher_type(int pairwise_cipher, int group_cipher)
     }
 }
 
-static void wifi_scan(void)
+void wifi_scan(void)
 {
 	s_wifi_event_group = xEventGroupCreate();
 	tcpip_adapter_init();
@@ -192,8 +251,8 @@ static void wifi_scan(void)
     ESP_ERROR_CHECK(esp_event_handler_register(IP_EVENT,IP_EVENT_STA_GOT_IP,&event_handler,NULL));
     wifi_config_t wifi_config = {
         .sta = {
-            .ssid = EXAMPLE_ESP_WIFI_SSID,
-            .password = EXAMPLE_ESP_WIFI_PASS,
+            .ssid = ESP_WIFI_SSID,
+            .password = ESP_WIFI_PASS,
 			.threshold.authmode = WIFI_AUTH_WPA2_PSK,
             .pmf_cfg = {
                 .capable = true,
@@ -208,10 +267,10 @@ static void wifi_scan(void)
 	EventBits_t bits = xEventGroupWaitBits(s_wifi_event_group,WIFI_CONNECTED_BIT | WIFI_FAIL_BIT,pdFALSE,pdFALSE,portMAX_DELAY);
 	if (bits & WIFI_CONNECTED_BIT) {
         ESP_LOGI(TAG, "connected to ap SSID:%s password:%s",
-                 EXAMPLE_ESP_WIFI_SSID, EXAMPLE_ESP_WIFI_PASS);
+                 ESP_WIFI_SSID, ESP_WIFI_PASS);
     } else if (bits & WIFI_FAIL_BIT) {
         ESP_LOGI(TAG, "Failed to connect to SSID:%s, password:%s",
-                 EXAMPLE_ESP_WIFI_SSID, EXAMPLE_ESP_WIFI_PASS);
+                 ESP_WIFI_SSID, ESP_WIFI_PASS);
     } else {
         ESP_LOGE(TAG, "UNEXPECTED EVENT");
     }
@@ -221,9 +280,9 @@ static void wifi_scan(void)
     vEventGroupDelete(s_wifi_event_group);
 }
 
-static void do_retransmit(const int sock)
+void do_retransmit(const int sock)
 {
-    int len;
+	int len;
     //char rx_buffer[128];
     do {
         len = recv(sock, rx_buffer, sizeof(rx_buffer) - 1, 0);
@@ -249,69 +308,4 @@ static void do_retransmit(const int sock)
     } while (len > 0);
 }
 
-static void tcp_client_task(void *pvParameters)
-{
-    char addr_str[128];
-    int addr_family;
-    int ip_protocol;
 
-	while(1)
-	{
-        struct sockaddr_in destAddr;
-        destAddr.sin_addr.s_addr = inet_addr(HOST_IP_ADDR);
-        destAddr.sin_family = AF_INET;
-        destAddr.sin_port = htons(PORT);
-        addr_family = AF_INET;
-        ip_protocol = IPPROTO_IP;
-        inet_ntoa_r(destAddr.sin_addr, addr_str, sizeof(addr_str) - 1);
-
-		int sock =  socket(addr_family, SOCK_STREAM, ip_protocol);
-        if (sock < 0) {
-            ESP_LOGE(TAG, "Unable to create socket: errno %d", errno);
-            break;
-        }
-        ESP_LOGI(TAG, "Socket created");
-
-        int err = connect(sock, (struct sockaddr *)&destAddr, sizeof(destAddr));
-        if (err != 0) {
-            ESP_LOGE(TAG, "Socket unable to connect: errno %d", errno);
-            close(sock);
-            continue;
-        }
-        ESP_LOGI(TAG, "Successfully connected");
-
-        while (1) {
-  /*          int err = send(sock, payload, strlen(payload), 0);
-            if (err < 0) {
-                ESP_LOGE(TAG, "Error occured during sending: errno %d", errno);
-                break;
-            }*/
-
-            len = recv(sock, rx_buffer, sizeof(rx_buffer) - 1, 0);
-            // Error occured during receiving
-            if (len < 0) {
-                ESP_LOGE(TAG, "recv failed: errno %d", errno);
-                break;
-            }
-	    else if ((len < 64) | (len > 250)) {
-                ESP_LOGW(TAG, "incorrect packet size");
-		continue;
-		}
-            // Data received
-            else {
-                rx_buffer[len] = 0; // Null-terminate whatever we received and treat like a string
-                ESP_LOGI(TAG, "Received %d bytes from %s:", len, addr_str);
-                ESP_LOGI(TAG, "%s", (char *) rx_buffer);
-		calculate_data();
-            }
-
-            vTaskDelay(100 / portTICK_PERIOD_MS);
-        }
-
-        if (sock != -1) {
-            ESP_LOGE(TAG, "Shutting down socket and restarting...");
-            shutdown(sock, 0);
-            close(sock);
-		}
-    }
-}
