@@ -243,7 +243,7 @@ void tcp_client_task(void *pvParameters)
                 break;
             }
 	    //else if ((len < 64) | (len > 250)) {
-	    else if (len != 128) {
+	    else if ((len < 127) | (len > 130)){
                 ESP_LOGW(TAG, "incorrect packet size: %d", len);
                 //vTaskDelay(2000 / portTICK_PERIOD_MS);
 		continue;
