@@ -13,7 +13,7 @@
 
 #define DEFAULT_SCAN_LIST_SIZE 20
 #define ESP_MAXIMUM_RETRY 5
-#define ESP_WIFI_SSID "3-Ogorodnaya-55"
+#define ESP_WIFI_SSID "TigraHome"
 #define ESP_WIFI_PASS "@REN@-$0b@k@"
 //#define ESP_WIFI_SSID "RADIUS-3"
 //#define ESP_WIFI_PASS "temp-s0jdvbrjrv"
